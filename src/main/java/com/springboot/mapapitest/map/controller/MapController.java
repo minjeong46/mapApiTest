@@ -19,9 +19,10 @@ public class MapController {
 
 
     @GetMapping("/test")
-    public String map(@RequestParam String query, Model model) {
-        List<Map<String,String>> queryed = testService.search(query);
-        model.addAttribute("query", queryed);
+    public String map(@RequestParam(value = "query", defaultValue = "") String query, Model model) {
+        List<Map<String,String>> searchData = testService.search(query);
+        model.addAttribute("searchData", searchData);
+        model.addAttribute("query", query);
         return "map";
     }
 }
