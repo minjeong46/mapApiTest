@@ -9,33 +9,45 @@
     <script src="https://openapi.map.naver.com/openapi/v3/maps.js?ncpClientId=rhu3lcktrl"></script>
 </head>
 <body>
-<h1>Search Results</h1>
-
+<h1>맵 선택</h1>
 <form th:action="@{/test}" method="get">
     <label for="query">검색</label>
     <input type="text" id="query" name="query" th:value="${query}" placeholder="주소 키워드를 입력하세요!">
     <input type="submit" id="search-submit" value="검색">
 </form>
 <div style="display: flex">
-    <div id="map" style="width:30%;height:300px;"></div>
 
+    <div id="map" style="width:30%;height:300px;"></div>
+    <div style="background-color: #d6d1b0; width: 30%; height: 40px;">
+        <ul style="display:flex; " id="savedList">
+            <li>저장된 값이 없음</li>
+        </ul>
+    </div>
     <div th:if="${searchData}">
         <ul>
             <li id="restaurant" th:each="searchData : ${searchData}">
-                <h3 th:text="${searchData.title}"></h3>
+                <h3 th:utext="${searchData.title}" name="click-address"  th:data-lat="${searchData.latitude}" th:data-lng="${searchData.longitude}"></h3>
                 <p th:text="'Address: ' + ${searchData.address}"></p>
                 <p th:text="'rodeAddress: ' + ${searchData.roadAddress}"></p>
                 <input type="hidden" id="latitude" th:value = "${searchData.latitude}" />
                 <input type="hidden"  id="longitude" th:value = "${searchData.longitude}"/>
-                <input type="radio" name="chk-address" th:data-lat="${searchData.latitude}" th:data-lng="${searchData.longitude}"/>
+                <input type="checkbox" name="checkbox" th:data-total="${searchData}"/>
             </li>
         </ul>
     </div>
 </div>
 
+<h1>맵 마커 적용</h1>
+<div id="map2" style="width:30%;height:300px;"></div>
+
 <script th:inline="javascript">
     let locations = /*[[${searchData}]]*/ [];
     console.log(locations);
+    console.log(locations.length);
+
+    if(locations.length <= 0) {
+        alert("검색 결과가 없습니다. 정확한 키워드를 입력해주세요.")
+    }
 
     // map 기본 설정
     let map = new naver.maps.Map("map", {
@@ -44,10 +56,10 @@
         mapTypeControl: true
     });
 
-    // 라디오박스 체크
-    const chk = document.getElementsByName('chk-address');
+    // title 체크
+    const clickAddress = document.getElementsByName('click-address');
 
-    Array.from(chk).forEach((data)=>{
+    Array.from(clickAddress).forEach((data)=>{
         data.addEventListener('click', function (){
 
             const lat = parseFloat(data.dataset.lat);
@@ -71,6 +83,54 @@
         })
     })
 
+    // 체크 시 로컬스토리지에 저장
+    const chk = document.getElementsByName('checkbox');
+
+        Array.from(chk).forEach((data)=>{
+            data.addEventListener('click', function (){
+
+                let chkData = data.dataset.total;
+                let chkDataArray = [];
+
+                console.log(localStorage.getItem("checkRoot"));
+
+                if(localStorage.getItem("checkRoot") !== null){
+                    let jsonData = JSON.parse(localStorage.getItem("checkRoot"));
+
+                    if (!Array.isArray(jsonData)) {
+                        jsonData = [];
+                    }
+
+                    // 같은 값이 들어있지 않는 경우 추가
+                    if (!jsonData.includes(chkData)) {
+                        chkDataArray = [...jsonData, chkData];
+                        localStorage.setItem("checkRoot", JSON.stringify(chkDataArray));
+                    }
+
+                }else if(localStorage.getItem("checkRoot") == null) {
+                    chkDataArray = [chkData];
+                    localStorage.setItem("checkRoot", JSON.stringify(chkDataArray));
+                }
+
+                console.log(chkDataArray);
+
+            })
+
+        })
+
+
+
+
+
+        // map 하나 더
+        // map 기본 설정
+        let map2 = new naver.maps.Map("map2", {
+            center: new naver.maps.LatLng(37.5666805, 126.9784147),
+            zoom: 10,
+            mapTypeControl: true
+        });
+
+
 
     // 다중 마커
     // locations.forEach(place => {
@@ -84,36 +144,5 @@
 
 </script>
 
-
-
-
-  const latitude = document.getElementById('latitude').value;
-  const longitude = document.getElementById('longitude').value;
-
-  console.log(latitude);
-
-
-  var map = new naver.maps.Map("map", {
-    center: new naver.maps.LatLng(latitude, longitude),
-    zoom: 15,
-    mapTypeControl: true
-  });
-
-
-
-
-
-  // var infoWindow = new naver.maps.InfoWindow({
-  //   anchorSkew: true
-  // });
-  //
-  // var marker = new naver.maps.Marker({
-  //   position: new naver.maps.LatLng(latitude, longitude),
-  //   map: map
-  // });
-
-
-
-</script>-->
 </body>
 </html>
