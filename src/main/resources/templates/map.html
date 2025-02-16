@@ -1,148 +1,219 @@
 
 <!DOCTYPE html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Map Example</title>
-    <script src="https://code.jquery.com/jquery-3.6.0.js" integrity="sha256-H+K7U5CnXl1h5ywQfKtSj8PCmoN9aaq30gDh27Xc0jk=" crossorigin="anonymous"></script>
-    <script src="https://openapi.map.naver.com/openapi/v3/maps.js?ncpClientId=rhu3lcktrl"></script>
-</head>
-<body>
-<h1>맵 선택</h1>
-<form th:action="@{/test}" method="get">
-    <label for="query">검색</label>
-    <input type="text" id="query" name="query" th:value="${query}" placeholder="주소 키워드를 입력하세요!">
-    <input type="submit" id="search-submit" value="검색">
-</form>
-<div style="display: flex">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Map Example</title>
+        <script src="https://code.jquery.com/jquery-3.6.0.js" integrity="sha256-H+K7U5CnXl1h5ywQfKtSj8PCmoN9aaq30gDh27Xc0jk=" crossorigin="anonymous"></script>
+        <script src="https://openapi.map.naver.com/openapi/v3/maps.js?ncpClientId=rhu3lcktrl"></script>
+    </head>
+    <body>
+        <h1>맵 선택</h1>
+        <form th:action="@{/test}" method="get">
+            <label for="query">검색</label>
+            <input type="text" id="query" name="query" th:value="${query}" placeholder="주소 키워드를 입력하세요!">
+            <input type="submit" id="search-submit" value="검색">
+        </form>
+        <div style="display: flex">
 
-    <div id="map" style="width:30%;height:300px;"></div>
-    <div style="background-color: #d6d1b0; width: 30%; height: 40px;">
-        <ul style="display:flex; " id="savedList">
-            <li>저장된 값이 없음</li>
-        </ul>
-    </div>
-    <div th:if="${searchData}">
-        <ul>
-            <li id="restaurant" th:each="searchData : ${searchData}">
-                <h3 th:utext="${searchData.title}" name="click-address"  th:data-lat="${searchData.latitude}" th:data-lng="${searchData.longitude}"></h3>
-                <p th:text="'Address: ' + ${searchData.address}"></p>
-                <p th:text="'rodeAddress: ' + ${searchData.roadAddress}"></p>
-                <input type="hidden" id="latitude" th:value = "${searchData.latitude}" />
-                <input type="hidden"  id="longitude" th:value = "${searchData.longitude}"/>
-                <input type="checkbox" name="checkbox" th:data-total="${searchData}"/>
-            </li>
-        </ul>
-    </div>
-</div>
+            <div id="map" style="width:30%;height:300px;"></div>
+            <div style="background-color: #d6d1b0; width: 30%; height: 40px;">
+                <ul style="display:flex; " id="rootSaveList">
+                    <li>저장된 값이 없음</li>
+                </ul>
+            </div>
+            <div th:if="${searchData}">
+                <ul>
+                    <li id="restaurant" th:each="searchData : ${searchData}">
+                        <h3 th:utext="${searchData.title}" name="click-address" th:data-lat="${searchData.latitude}" th:data-lng="${searchData.longitude}"></h3>
+                        <p th:text="'Address: ' + ${searchData.address}"></p>
+                        <p th:text="'rodeAddress: ' + ${searchData.roadAddress}"></p>
+                        <input type="hidden" id="latitude" th:value = "${searchData.latitude}" />
+                        <input type="hidden"  id="longitude" th:value = "${searchData.longitude}"/>
+                        <input type="checkbox" name="checkbox"
+                               th:data-title="${searchData.title}"
+                               th:data-address="${searchData.address}"
+                               th:data-roadAddress="${searchData.roadAddress}"
+                               th:data-latitude="${searchData.latitude}"
+                               th:data-longitude="${searchData.longitude}"
+                        />
+                    </li>
+                </ul>
+            </div>
+        </div>
+        <script th:inline="javascript">
+            let locations = /*[[${searchData}]]*/ [];
+            let map;
+            let marker;
+            let polyline;
 
-<h1>맵 마커 적용</h1>
-<div id="map2" style="width:30%;height:300px;"></div>
+            // 맵 초기 설정
+            function setMap(lat, lng) {
+                map = new naver.maps.Map("map", {
+                    center: new naver.maps.LatLng(lat, lng),
+                    zoom: 12,
+                    mapTypeControl: true
+                });
+                drawPolyline();
+            }
 
-<script th:inline="javascript">
-    let locations = /*[[${searchData}]]*/ [];
-    console.log(locations);
-    console.log(locations.length);
+            // 검색 시 결과가 없을 경우
+            if(locations.length <= 0) {
+                alert("검색 결과가 없습니다. 정확한 키워드를 입력해주세요.")
+            }
 
-    if(locations.length <= 0) {
-        alert("검색 결과가 없습니다. 정확한 키워드를 입력해주세요.")
-    }
+            // title 체크 시 지도/마커
+            const clickAddress = document.getElementsByName('click-address');
 
-    // map 기본 설정
-    let map = new naver.maps.Map("map", {
-        center: new naver.maps.LatLng(37.5666805, 126.9784147),
-        zoom: 10,
-        mapTypeControl: true
-    });
+            Array.from(clickAddress).forEach((data)=>{
+                data.addEventListener('click', function (){
 
-    // title 체크
-    const clickAddress = document.getElementsByName('click-address');
+                    const lat = parseFloat(data.dataset.lat);
+                    const lng = parseFloat(data.dataset.lng);
 
-    Array.from(clickAddress).forEach((data)=>{
-        data.addEventListener('click', function (){
+                    console.log(lat);
+                    console.log(lng);
 
-            const lat = parseFloat(data.dataset.lat);
-            const lng = parseFloat(data.dataset.lng);
+                    // 체크 시 map 새로 초기화
+                    map.setCenter(new naver.maps.LatLng(lat, lng));
 
-            console.log(lat);
-            console.log(lng);
-
-            // 체크 시 map 새로 초기화
-            map = new naver.maps.Map("map", {
-                center: new naver.maps.LatLng(lat, lng),
-                zoom: 18,
-                mapTypeControl: true
-            });
-
-            // 체크 시 해당 좌표 마커
-            const marker = new naver.maps.Marker({
-                position: new naver.maps.LatLng(lat, lng),
-                map: map
-            });
-        })
-    })
-
-    // 체크 시 로컬스토리지에 저장
-    const chk = document.getElementsByName('checkbox');
-
-        Array.from(chk).forEach((data)=>{
-            data.addEventListener('click', function (){
-
-                let chkData = data.dataset.total;
-                let chkDataArray = [];
-
-                console.log(localStorage.getItem("checkRoot"));
-
-                if(localStorage.getItem("checkRoot") !== null){
-                    let jsonData = JSON.parse(localStorage.getItem("checkRoot"));
-
-                    if (!Array.isArray(jsonData)) {
-                        jsonData = [];
+                    if (marker) {
+                        marker.setMap(null);
                     }
 
-                    // 같은 값이 들어있지 않는 경우 추가
-                    if (!jsonData.includes(chkData)) {
-                        chkDataArray = [...jsonData, chkData];
-                        localStorage.setItem("checkRoot", JSON.stringify(chkDataArray));
-                    }
+                    // 체크 시 해당 좌표 마커
+                    marker = new naver.maps.Marker({
+                        position: new naver.maps.LatLng(lat, lng),
+                        map: map
+                    });
 
-                }else if(localStorage.getItem("checkRoot") == null) {
-                    chkDataArray = [chkData];
-                    localStorage.setItem("checkRoot", JSON.stringify(chkDataArray));
-                }
-
-                console.log(chkDataArray);
-
+                })
             })
 
-        })
 
 
+            // 페이지 로드 시 동작
+            document.addEventListener("DOMContentLoaded", ()=>{
+                updateSavedList();
+                setMap(37.5666805, 126.9784147);
+            });
+
+            // 체크박스 이벤트 처리
+            document.querySelectorAll('input[name="checkbox"]').forEach((checkbox) => {
+                checkbox.addEventListener("change", function () {
+                    const obj = {
+                        title: checkbox.dataset.title,
+                        address: checkbox.dataset.address,
+                        roadAddress: checkbox.dataset.roadAddress,
+                        latitude: checkbox.dataset.latitude,
+                        longitude: checkbox.dataset.longitude
+                    }
+                    // console.log(typeof obj);
+                    const localChkData = JSON.parse(localStorage.getItem("checkRoot")) || [];
+                    // console.log(typeof localChkData);
+                    if (this.checked) {
+                        // some 하나라도
+                        if (!localChkData.some(item => item.title === obj.title)) {
+                            localChkData.push(obj);
+                            localStorage.setItem("checkRoot", JSON.stringify(localChkData));
+                        }
+                    } else {
+                        // 체크되지 않았으면 지우기
+                        removeFromLocalStorage(obj);
+                    }
+                    drawPolyline();
+                    updateSavedList();
+                });
+            });
 
 
+            // 리스트에 값 넣기
+            function updateSavedList() {
+                const rootSaveList = document.getElementById("rootSaveList");
+                rootSaveList.innerHTML = "";
+                const localChkData = JSON.parse(localStorage.getItem("checkRoot")) || [];
 
-        // map 하나 더
-        // map 기본 설정
-        let map2 = new naver.maps.Map("map2", {
-            center: new naver.maps.LatLng(37.5666805, 126.9784147),
-            zoom: 10,
-            mapTypeControl: true
-        });
+                if (localChkData.length === 0) {
+                    rootSaveList.innerHTML = "<li></li>";
+                    return;
+                }
+
+                localChkData.forEach((item) => {
+                    const li = document.createElement("li");
+
+                    const cleanTitle = item.title.replace(/<b>/g, '').replace(/<\/b>/g, '');
+                    li.innerHTML = cleanTitle;
+
+                    // 삭제 버튼 추가
+                    const removeBtn = document.createElement("button");
+                    removeBtn.textContent = "삭제";
+                    removeBtn.addEventListener("click", () => {
+                        removeFromLocalStorage(item);
+
+                    });
+
+                    li.appendChild(removeBtn);
+                    rootSaveList.appendChild(li);
+                });
+            }
+
+            // 로컬스토리지에서 값 삭제하는 함수
+            function removeFromLocalStorage(value) {
+                let localChkData = JSON.parse(localStorage.getItem("checkRoot")) || [];
+                localChkData = localChkData.filter(item => item.title !== value.title);
+                localStorage.setItem("checkRoot", JSON.stringify(localChkData));
+
+                document.querySelectorAll('input[name="checkbox"]').forEach((chk)=>{
+                    if(chk.dataset.title === value.title){
+                        chk.checked = false;
+                    }
+                })
+
+                updateSavedList();
+                drawPolyline();
+            }
+
+            function drawPolyline() {
+                const localChkData = JSON.parse(localStorage.getItem("checkRoot")) || [];
+
+                const path = localChkData.map((data)=>{
+                    console.log(data)
+                    return new naver.maps.LatLng(data.latitude, data.longitude)
+                })
+
+                if(polyline) {
+                    polyline.setMap(null);
+                }
+
+                polyline = new naver.maps.Polyline({
+                    map: map,
+                    path: path,
+                    strokeColor: '#FF0000',
+                    strokeWeight: 3
+                });
+
+            }
+
+            // map 기본 설정
+            // map = new naver.maps.Map("map", {
+            //     center: new naver.maps.LatLng(37.5666805, 126.9784147),
+            //     zoom: 10,
+            //     mapTypeControl: true
+            // });
 
 
+            // 다중 마커
+            // locations.forEach(place => {
+            //
+            //     const marker = new naver.maps.Marker({
+            //         position: new naver.maps.LatLng(place.latitude, place.longitude),
+            //         map: map
+            //     });
+            //     console.log(place.latitude);
+            // })
 
-    // 다중 마커
-    // locations.forEach(place => {
-    //
-    //     const marker = new naver.maps.Marker({
-    //         position: new naver.maps.LatLng(place.latitude, place.longitude),
-    //         map: map
-    //     });
-    //     console.log(place.latitude);
-    // })
+        </script>
 
-</script>
-
-</body>
+    </body>
 </html>
